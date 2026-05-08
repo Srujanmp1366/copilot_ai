@@ -118,7 +118,7 @@ function EligibilityTab({ results }) {
   )
 }
 
-function DocumentsTab({ documents }) {
+function DocumentsTab({ documents, uploadedDocs, setUploadedDocs }) {
   if (!documents) return <p className="text-gray-500 text-sm">No document data yet.</p>
 
   const renderTextWithLinks = (text) => {
@@ -174,19 +174,33 @@ function DocumentsTab({ documents }) {
           <div className="space-y-2">
             {(cat.documents || []).map((doc, j) => (
               <div key={j} className="glass-card p-4 flex items-center gap-4 bg-white shadow-sm border border-gray-200">
-                <div className={`p-2 rounded-lg ${doc.likelyAvailable ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
-                  {doc.likelyAvailable ? <FileCheck size={20} /> : <File size={20} />}
+                <div className={`p-2 rounded-lg ${doc.likelyAvailable || uploadedDocs[doc.name] ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                  {doc.likelyAvailable || uploadedDocs[doc.name] ? <FileCheck size={20} /> : <File size={20} />}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-gray-900">{renderTextWithLinks(doc.name)}</div>
+                  <div className={`text-sm font-bold ${uploadedDocs[doc.name] ? 'text-emerald-700 line-through' : 'text-gray-900'}`}>{renderTextWithLinks(doc.name)}</div>
                   <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                     <Clock size={12} /> {doc.estimatedTime}
                   </div>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${doc.priority === 'high' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                  {doc.priority.toUpperCase()}
-                </span>
+                {!doc.likelyAvailable && !uploadedDocs[doc.name] ? (
+                  <label className="cursor-pointer text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100 inline-block text-center">
+                    Upload
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setUploadedDocs(prev => ({...prev, [doc.name]: true}))
+                        }
+                      }} 
+                    />
+                  </label>
+                ) : (
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${uploadedDocs[doc.name] ? 'bg-emerald-50 text-emerald-600' : doc.priority === 'high' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                    {uploadedDocs[doc.name] ? 'UPLOADED' : doc.priority.toUpperCase()}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -196,7 +210,7 @@ function DocumentsTab({ documents }) {
   )
 }
 
-function RoadmapTab({ roadmap }) {
+function RoadmapTab({ roadmap, uploadedDocs }) {
   if (!roadmap) return <p className="text-gray-500 text-sm">No roadmap data yet.</p>
 
   return (
@@ -226,14 +240,23 @@ function RoadmapTab({ roadmap }) {
             </div>
           </div>
           <div className="ml-5 border-l-2 border-gray-200 pl-8 space-y-4 pb-4">
-            {(phase.steps || []).map((step, j) => (
-              <div key={j} className="glass-card p-5 bg-white border border-gray-200 shadow-sm relative">
-                <div className="absolute w-3 h-3 bg-white border-2 border-indigo-400 rounded-full -left-[39px] top-6" />
-                <div className="text-sm font-bold text-gray-900 mb-2">
-                  {step.step}. {step.title}
+            {(phase.steps || []).map((step, j) => {
+              const isDocStep = step.relatedDocument;
+              const isUploaded = isDocStep && uploadedDocs[step.relatedDocument];
+              return (
+              <div key={j} className={`glass-card p-5 border shadow-sm relative transition-all ${isUploaded ? 'bg-emerald-50/30 border-emerald-100 opacity-70' : 'bg-white border-gray-200'}`}>
+                <div className={`absolute w-3 h-3 border-2 rounded-full -left-[39px] top-6 ${isUploaded ? 'bg-emerald-500 border-emerald-200' : 'bg-white border-indigo-400'}`} />
+                <div className={`text-sm font-bold mb-2 flex items-center justify-between ${isUploaded ? 'text-emerald-800' : 'text-gray-900'}`}>
+                  <span>{step.step}. {isUploaded ? <strike>{step.title}</strike> : step.title}</span>
+                  {isUploaded && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10} /> Done</span>}
                 </div>
-                <p className="text-sm text-gray-600 mb-3 leading-relaxed">{step.description}</p>
-                {step.actionItems?.length > 0 && (
+                <p className={`text-sm mb-3 leading-relaxed ${isUploaded ? 'text-emerald-600' : 'text-gray-600'}`}>{step.description}</p>
+                {step.link && (
+                  <a href={step.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md mb-3">
+                    Open Portal <ExternalLink size={12} />
+                  </a>
+                )}
+                {step.actionItems?.length > 0 && !isUploaded && (
                   <ul className="space-y-1.5 bg-gray-50 p-3 rounded-lg border border-gray-100">
                     {step.actionItems.map((item, k) => (
                       <li key={k} className="text-xs flex items-start gap-2 text-gray-600 font-medium">
@@ -244,7 +267,7 @@ function RoadmapTab({ roadmap }) {
                   </ul>
                 )}
               </div>
-            ))}
+            )})}
           </div>
         </motion.div>
       ))}
@@ -392,6 +415,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('summary')
   const [isExporting, setIsExporting] = useState(false)
   const [isLoadingDB, setIsLoadingDB] = useState(true)
+  const [uploadedDocs, setUploadedDocs] = useState({})
   const contentRef = useRef()
 
   // Load from DB or Save to DB
@@ -537,8 +561,8 @@ export default function Dashboard() {
               <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 {activeTab === 'summary' && <SummaryTab simplification={simplification} eligibilityResults={eligibilityResults} />}
                 {activeTab === 'eligibility' && <EligibilityTab results={eligibilityResults} />}
-                {activeTab === 'documents' && <DocumentsTab documents={documents} />}
-                {activeTab === 'roadmap' && <RoadmapTab roadmap={roadmap} />}
+                {activeTab === 'documents' && <DocumentsTab documents={documents} uploadedDocs={uploadedDocs} setUploadedDocs={setUploadedDocs} />}
+                {activeTab === 'roadmap' && <RoadmapTab roadmap={roadmap} uploadedDocs={uploadedDocs} />}
               </motion.div>
             </div>
           </div>
